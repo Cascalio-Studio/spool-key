@@ -5,13 +5,16 @@
 - Project overview
 
 ## 2. Hardware Description
-- Overview of hardware components
-- Block diagram
-- Key specifications
+### Parts List
+ST25R3911B NFC Reader IC (STMicroelectronics)
+STM32G0B1 Microcontroller (STMicroelectronics)
+Winbond W25Q32 SPI NOR Flash (4MB, SOIC-8)
+CUI Inc. CPT-1205C Passive Piezo Buzzer (3.3V)
+Push Button (Start/Stop Reading)
+Push Button (Reset)
+Status LEDs
+USB Connector (for PC communication)
 
-## 3. Firmware Architecture
-- System overview
-- Main modules/components
 - Communication interfaces
 
 ## 4. Data Flow & Operation Sequence
