@@ -27,12 +27,174 @@ The hardware platform is chosen for its flexibility, availability, and proven pe
 Communication interfaces (SPI, USB, GPIO) will be defined according to the board's capabilities and project requirements. The design allows for easy expansion and integration of additional peripherals if needed.
 
 ## 4. Data Flow & Operation Sequence
-- Step-by-step process of NFC reading
-- Data transmission to software
+
+## 3. Firmware Architecture
+### Overview
+The firmware will enable the NFC reader device to communicate with the Spool-Coder software via USB using the CDC (virtual COM port) protocol. Its main responsibilities are to handle NFC tag reading/writing, manage user input (buttons), provide status indication (LEDs, buzzer), and exchange data with the PC.
+
+### Main Modules
+- **USB CDC Communication Module:** Implements USB CDC (virtual COM port) for data exchange with the PC. Receives commands from Spool-Coder and sends responses/data.
+- **NFC Control Module:** Interfaces with the ST25R3911B IC to read/write NFC tags. Handles tag detection, data extraction, and programming.
+- **User Interface Module:** Manages buttons (start/stop, reset), LEDs, and buzzer for feedback and status.
+- **Data Management Module:** Handles temporary storage of NFC data and manages external flash for logs/configuration if needed.
+- **Firmware Update Module:** Supports firmware updates via USB for maintainability and future improvements.
+
+### Operation Sequence
+1. Device powers up, initializes hardware and USB CDC connection.
+2. Waits for commands from Spool-Coder (e.g., "read tag", "write tag").
+3. On "read tag":
+   - Activates NFC reader, scans for tag.
+   - Reads tag data, sends it to PC via USB CDC.
+   - Indicates status via LED/buzzer.
+4. On "write tag":
+   - Receives new data from PC.
+   - Programs NFC tag.
+   - Confirms operation to PC and user.
+5. Handles errors, user input, and status indication throughout.
+
+### Firmware Flowchart
+
+```
+[Start]
+   |
+   v
+[Initialize Hardware & USB CDC]
+   |
+   v
+[Wait for Command from PC]
+   |
+   v
++-----------------------------+
+|  Command Received?          |
++-----------------------------+
+   |         | 
+   |         v
+   |      [No] <-------------------+
+   |         |                     |
+   v         v                     |
+[Yes]   [Idle/Status Indication]   |
+   |                               |
+   v                               |
+[Parse Command]                    |
+   |                               |
+   v                               |
++-----------------------------+    |
+| Command Type?               |    |
++-----------------------------+    |
+   |         |         |      |    |
+   v         v         v      v    |
+[READ_TAG][WRITE_TAG][GET_STATUS][RESET]
+   |         |         |      |
+   v         v         v      v
+[Activate   [Receive   [Send  [Reset
+ NFC Reader] Data from Status] Device]
+   |         PC]       |      |
+   v         |         v      v
+[Read Tag   [Write     [Send  [Restart
+ Data]      Tag Data]  Response] Firmware]
+   |         |         |      |
+   v         v         v      v
+[Send Data  [Confirm   [Idle/Status Indication]
+ to PC]     to PC]
+   |         |
+   v         v
+[Idle/Status Indication]
+   |
+   v
+[Wait for Next Command]
+```
+
+### Communication Protocol
+The communication protocol between the firmware and Spool-Coder must be defined. It should be simple and robust, supporting commands such as `READ_TAG`, `WRITE_TAG`, `GET_STATUS`, and `RESET`. The firmware will act as a transparent bridge, passing data between the NFC tag and the Spool-Coder software. Encoding and decoding of Bambulab spool data is handled entirely by the software; the device only transmits raw data.
+
+### Supported Features
+- USB CDC (virtual COM port) for PC communication
+- Firmware update via USB
+- Data pass-through for Bambulab spools
+- Status indication and user input handling
 
 ## 5. Integration with Existing Software
-- Interface description
-- Data format and protocol
+
+### USB CDC Communication Protocol
+The device communicates with the Spool-Coder software via USB CDC (virtual COM port) using a simple, robust, binary protocol. Each message consists of a fixed header, command code, payload length, payload data, and checksum for error detection.
+
+#### Message Structure
+| Byte Offset | Field           | Description                                 |
+|-------------|-----------------|---------------------------------------------|
+| 0           | Start Byte      | 0xAA (indicates start of message)           |
+| 1           | Command Code    | 1 byte (see below)                          |
+| 2           | Payload Length  | 1 byte (number of payload bytes)            |
+| 3..N        | Payload         | N bytes (depends on command)                |
+| N+1         | Checksum        | 1 byte (sum of all previous bytes modulo 256)|
+
+#### Command Codes
+- 0x01: READ_TAG
+- 0x02: WRITE_TAG
+- 0x03: GET_STATUS
+- 0x04: RESET
+
+#### Example: Read Tag Command
+Suppose the host wants to read a tag. The message sent from PC to device:
+
+| Byte | Value | Description           |
+|------|-------|----------------------|
+| 0    | 0xAA  | Start Byte           |
+| 1    | 0x01  | Command: READ_TAG    |
+| 2    | 0x00  | Payload Length: 0    |
+| 3    | 0xAB  | Checksum: 0xAA+0x01+0x00 = 0xAB |
+
+Device responds with tag data (example, 8 bytes):
+
+| Byte | Value | Description           |
+|------|-------|----------------------|
+| 0    | 0xAA  | Start Byte           |
+| 1    | 0x01  | Command: READ_TAG    |
+| 2    | 0x08  | Payload Length: 8    |
+| 3-10 | ...   | Tag Data (8 bytes)   |
+| 11   | XX    | Checksum: sum of all previous bytes modulo 256 |
+
+#### Example Data Exchange
+#### Example Frame Format Table
+
+
+#### Protocol Frame Format
+
+| Field           | Offset | Size      | Example Value | Description                                 |
+|-----------------|--------|-----------|--------------|---------------------------------------------|
+| Start Byte      | 0      | 1 byte    | 0xAA         | Indicates start of message                  |
+| Command Code    | 1      | 1 byte    | 0x01         | READ_TAG command                            |
+| Payload Length  | 2      | 1 byte    | 0x08         | Number of bytes in Data field               |
+| Data            | 3      | N bytes   | 0xDE,0xAD... | Tag data (example, N=8)                     |
+| Checksum        | 3+N    | 1 byte    | 0xXX         | Sum of all previous bytes modulo 256        |
+
+**Frame Example (READ_TAG response, N=8):**
+
+| Offset | Value | Description           |
+|--------|-------|----------------------|
+| 0      | 0xAA  | Start Byte           |
+| 1      | 0x01  | Command: READ_TAG    |
+| 2      | 0x08  | Payload Length: 8    |
+| 3      | 0xDE  | Tag Data byte 1      |
+| 4      | 0xAD  | Tag Data byte 2      |
+| 5      | 0xBE  | Tag Data byte 3      |
+| 6      | 0xEF  | Tag Data byte 4      |
+| 7      | 0x01  | Tag Data byte 5      |
+| 8      | 0x02  | Tag Data byte 6      |
+| 9      | 0x03  | Tag Data byte 7      |
+| 10     | 0x04  | Tag Data byte 8      |
+| 11     | 0xXX  | Checksum             |
+
+**Full Frame (hex):**
+`AA 01 08 DE AD BE EF 01 02 03 04 XX`
+
+PC sends: [0xAA, 0x01, 0x00, 0xAB]
+Device responds: [0xAA, 0x01, 0x08, 0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02, 0x03, 0x04, 0xXX]
+Where 0xDEADBEEF01020304 is the tag data, and 0xXX is the checksum.
+
+#### Notes
+- All multi-byte values are sent in big-endian format.
+- The checksum is a simple sum of all previous bytes modulo 256.
+- The protocol is extensible for future commands and payloads.
 
 ## 6. Future Extensions
 - Possible improvements
