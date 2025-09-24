@@ -135,7 +135,7 @@ SECTIONS
 
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);
-  
+
   /* Initialized data sections into "RAM" Ram type memory */
   .data :
   {
@@ -177,18 +177,6 @@ SECTIONS
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
   } >RAM
-  
-  /* User Heap Stack, used to check that there is enough "RAM" Ram type memory left */
-  .freeRTOSHeap :
-  {
-    . = ALIGN(8);
-    PROVIDE(__HeapBase = .);
-    PROVIDE(__freeRTOS_heap_start = .);
-    . = . + 0x4000; /* Reserve 16KB for FreeRTOS heap */
-    . = ALIGN(8);
-    PROVIDE(__freeRTOS_heap_end = .);
-    PROVIDE(__HeapLimit = .);
-  } >RAM2
 
   /* Remove information from the compiler libraries */
   /DISCARD/ :

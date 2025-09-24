@@ -1,5 +1,5 @@
 /**
- * @file    App/Src/gpio.cpp
+ * @file    App/Src/gpioClass.cpp
  * @brief   GPIO source file.
  * @details This file contains the implementation of the GPIO initialization and control functions.
  * @author  MootSeeker
@@ -10,27 +10,34 @@
  /**
   * @include necessary headers
   */
-#include "gpio.h"
+#include "gpioClass.h"
 #include "main.h"
-#include <cstdio>
-
 
 /**
  * @namespace GPIO
  */
 namespace GPIO
 {
+    /**
+     * @brief Initialize the GPIO pin with the given configuration.
+     */
     void GPIOBase::Init( const PinConfig &config )
     {
         enableClock( config.port );
         configurePin( config );
     }
 
+    /**
+     * @brief De-initialize the GPIO pin.
+     */
     void GPIOBase::DeInit( void )
     {
         LL_GPIO_DeInit( _config.port );
     }
 
+    /**
+     * @brief Write a state to the GPIO pin.
+     */
     void GPIOBase::Write( bool state )
     {
         if ( _config.mode == PinMode::OUTPUT )
@@ -43,6 +50,9 @@ namespace GPIO
         }
     }
 
+    /**
+     * @brief Read the state of the GPIO pin.
+     */
     bool GPIOBase::Read( void )
     {
         if ( _config.mode == PinMode::INPUT )
@@ -52,6 +62,9 @@ namespace GPIO
         return false;
     }
 
+    /**
+     * @brief Toggle the state of the GPIO pin.
+     */
     void GPIOBase::Toggle( void )
     {
         if ( _config.mode == PinMode::OUTPUT )
@@ -60,6 +73,9 @@ namespace GPIO
         }
     }
 
+    /**
+     * @brief Enable the clock for the specified GPIO port.
+     */
     void GPIOBase::enableClock( GPIO_TypeDef *port )
     {
         if ( port == GPIOA ) LL_AHB2_GRP1_EnableClock( LL_AHB2_GRP1_PERIPH_GPIOA );
@@ -70,6 +86,9 @@ namespace GPIO
         else if ( port == GPIOH ) LL_AHB2_GRP1_EnableClock( LL_AHB2_GRP1_PERIPH_GPIOH );
     }
 
+    /**
+     * @brief Configure the GPIO pin based on the provided configuration.
+     */
     void GPIOBase::configurePin( const PinConfig &config )
     {
         LL_GPIO_InitTypeDef gpioInit = {0};
@@ -90,9 +109,6 @@ namespace GPIO
         // Configure EXTI if needed
         if ( config.mode == PinMode::INPUT && config.extiLine != 0 )
         {
-            printf("Configuring EXTI for port %p, pin %lu, line %lu\n", 
-                   (void*)config.port, config.pin, config.extiLine);
-            
             // Enable SYSCFG clock for EXTI configuration
             LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_SYSCFG );
             
@@ -133,38 +149,52 @@ namespace GPIO
                 case LL_EXTI_LINE_15: irqNumber = EXTI15_10_IRQn; break;
                 default: return; // Invalid line
             }
+            // Set priority and enable IRQ
             NVIC_SetPriority( static_cast<IRQn_Type>( irqNumber ), NVIC_EncodePriority( NVIC_GetPriorityGrouping(), 10, 0 ) );
             NVIC_EnableIRQ( static_cast<IRQn_Type>( irqNumber ) );
-            
-            printf("EXTI configured: Line %lu, Port %lu, IRQ %lu enabled\n", 
-                   extiLineNumber, extiPort, irqNumber);
         }
     }
 
-
-
+    /* Interrupt class implementation --------------------------------------------------------------------------------------------- */
+    /**
+     * @brief Set the interrupt callback function
+     */
     void GPIOInterrupt::setCallback( void (*callback)(void) )
     {
         _callback = callback;
     }
 
-
-
+    /**
+     * @brief Check if interrupt is pending
+     */
     bool GPIOInterrupt::isInterruptPending( void )
     {
         return LL_EXTI_IsActiveFlag_0_31( _config.extiLine );
     }
 
+    /**
+     * @brief Clear pending interrupt flag
+     */
     void GPIOInterrupt::clearInterrupt( void )
     {
         LL_EXTI_ClearFlag_0_31( _config.extiLine );
     }
 
+    /**
+     * @brief Handle the interrupt (called from ISR)
+     */
     void GPIOInterrupt::handleInterrupt( void )
     {
         if ( isInterruptPending() )
         {
             clearInterrupt();
+            if ( _callback != nullptr )
+            {
+                _callback();
+            }
+        }
+        else
+        {
             if ( _callback != nullptr )
             {
                 _callback();

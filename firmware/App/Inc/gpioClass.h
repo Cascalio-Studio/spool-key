@@ -1,5 +1,5 @@
 /**
- * @file    App/Inc/gpio.h
+ * @file    App/Inc/gpioClass.h
  * @brief   GPIO header file.
  * @details This file contains the declarations for the GPIO initialization and control functions.
  * @author  MootSeeker
@@ -130,39 +130,77 @@ namespace GPIO
             void configurePin( const PinConfig &config );
     }; // class GPIOBase
 
+    /**
+     * @class GPIOOutput
+     * @brief Class for GPIO output pins.
+     */
     class GPIOOutput : public GPIOBase
     {
         public:
+            /**
+             * @brief Constructor to initialize GPIO output pin.
+             * @param config Configuration structure for the GPIO pin.
+             */
             GPIOOutput( const PinConfig &config ) : GPIOBase( config ) 
             {
                 Init( config );
             }
 
+            /**
+             * @brief Destructor.
+             */
             ~GPIOOutput() override
             {
                 DeInit();
             }
 
+            /**
+             * @brief Write a state to the output pin.
+             * @param state true to set the pin high, false to set it low.
+             */
             using GPIOBase::Write;
+
+            /**
+             * @brief Toggle the state of the output pin.
+             */
             using GPIOBase::Toggle;
     }; // class GPIOOutput
 
+    /**
+     * @class GPIOInput
+     * @brief Class for GPIO input pins.
+     */
     class GPIOInput : public GPIOBase
     {
         public:
+            /**
+             * @brief Constructor to initialize GPIO input pin.
+             * @param config Configuration structure for the GPIO pin.
+             */
             GPIOInput( const PinConfig &config ) : GPIOBase( config ) 
             {
                 Init( config );
             }
 
+            /**
+             * @brief Destructor.
+             */
             ~GPIOInput() override
             {
                 DeInit();
             }
 
+            /**
+             * @brief Read the state of the input pin.
+             * @return true if the pin is high, false if low.
+             */
             using GPIOBase::Read;
     }; // class GPIOInput
 
+    /**
+     * @class GPIOInterrupt
+     * @brief Class for GPIO pins configured as external interrupts.
+     */
     class GPIOInterrupt : public GPIOBase
     {
         public:
@@ -176,11 +214,18 @@ namespace GPIO
                 Init( config );
             }
 
+            /**
+             * @brief Destructor.
+             */
             ~GPIOInterrupt() override
             {
                 DeInit();
             }
 
+            /**
+             * @brief Read the state of the input pin.
+             * @return true if the pin is high, false if low.
+             */
             using GPIOBase::Read;
 
             /**
@@ -188,8 +233,6 @@ namespace GPIO
              * @param callback Function pointer to call on interrupt
              */
             void setCallback( void (*callback)(void) );
-
-
 
             /**
              * @brief Check if interrupt is pending
@@ -209,7 +252,6 @@ namespace GPIO
 
         private:
             void (*_callback)(void);  /**< Interrupt callback function */
-
     }; // class GPIOInterrupt
 } // namespace GPIO
 

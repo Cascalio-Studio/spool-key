@@ -18,7 +18,7 @@
 
 #include <cstdio>
 
-#include "gpio.h"
+#include "gpioClass.h"
 
 
 static GPIO::PinConfig ledConfig = {
