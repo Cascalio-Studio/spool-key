@@ -1,8 +1,15 @@
 /**
- * Filename: CppWrapper.cpp
- *
+ * @file    Utils/Src/CppWrapper.cpp
+ * @brief   C++ Wrapper for C code.
+ * @details This file provides a C-compatible interface for C++ code.
+ * @author  MootSeeker
+ * 
+ * @copyright (c) 2025 Cascalio Studio - All Rights Reserved
  */
 
+/**
+ * @include necessary headers
+ */
 #include "CppWrapper.h"
 #include "main.h"
 
@@ -21,7 +28,6 @@
 
 // C++ operator new/delete overrides for ST Newlib integration
 // These use standard malloc/free which are thread-safe via heap_useNewlib_ST.c
-
 void* operator new(size_t size)
 {
     void* ptr = malloc(size);
@@ -75,7 +81,9 @@ void operator delete[](void* ptr, size_t size) noexcept
     }
 }
 
-
+/**
+ * @brief C Event loop
+ */
 void EventLoopC( void )
 {
 	App_init();
