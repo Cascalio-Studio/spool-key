@@ -79,6 +79,8 @@ void Error_Handler(void);
 #define KEY_OK_Pin LL_GPIO_PIN_3
 #define KEY_OK_GPIO_Port GPIOC
 #define KEY_OK_EXTI_IRQn EXTI3_IRQn
+#define SEN_Pin LL_GPIO_PIN_4
+#define SEN_GPIO_Port GPIOA
 #define LED3_Pin LL_GPIO_PIN_10
 #define LED3_GPIO_Port GPIOB
 #define LED2_Pin LL_GPIO_PIN_11
