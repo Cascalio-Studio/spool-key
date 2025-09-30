@@ -12,6 +12,17 @@
  */
 #include "spiClass.h"
 #include "stm32l4xx_ll_utils.h"
+#include "FreeRTOS.h"
+#include "task.h"
+
+// Short delay for SPI operations (avoids blocking scheduler)
+static inline void SPI_ShortDelay(void)
+{
+    // ~10us busy wait instead of 1ms blocking delay
+    for (volatile uint32_t i = 0; i < 800; i++) {
+        __NOP();
+    }
+}
 
 namespace SPI
 {
@@ -274,24 +285,24 @@ namespace SPI
         }
 
         // Wait for TXE (Transmit buffer empty)
-        uint32_t timeout = _config.timeoutMs;
+        uint32_t timeout = _config.timeoutMs * 100; // Convert to ~10us units
         while (!LL_SPI_IsActiveFlag_TXE(_config.instance)) {
             if (timeout-- == 0) {
                 return SPIStatus::TIMEOUT;
             }
-            LL_mDelay(1);
+            SPI_ShortDelay();
         }
 
         // Send data
         LL_SPI_TransmitData8(_config.instance, data);
 
         // Wait for transmission complete
-        timeout = _config.timeoutMs;
+        timeout = _config.timeoutMs * 100; // Convert to ~10us units
         while (LL_SPI_IsActiveFlag_BSY(_config.instance)) {
             if (timeout-- == 0) {
                 return SPIStatus::TIMEOUT;
             }
-            LL_mDelay(1);
+            SPI_ShortDelay();
         }
 
         // Clear RXNE flag by reading DR
@@ -320,36 +331,36 @@ namespace SPI
         }
 
         // Wait for TXE (Transmit buffer empty)
-        uint32_t timeout = _config.timeoutMs;
+        uint32_t timeout = _config.timeoutMs * 100; // Convert to ~10us units
         while (!LL_SPI_IsActiveFlag_TXE(_config.instance)) {
             if (timeout-- == 0) {
                 return SPIStatus::TIMEOUT;
             }
-            LL_mDelay(1);
+            SPI_ShortDelay();
         }
 
         // Send data
         LL_SPI_TransmitData8(_config.instance, txData);
 
         // Wait for RXNE (Receive buffer not empty)
-        timeout = _config.timeoutMs;
+        timeout = _config.timeoutMs * 100; // Convert to ~10us units
         while (!LL_SPI_IsActiveFlag_RXNE(_config.instance)) {
             if (timeout-- == 0) {
                 return SPIStatus::TIMEOUT;
             }
-            LL_mDelay(1);
+            SPI_ShortDelay();
         }
 
         // Read received data
         rxData = LL_SPI_ReceiveData8(_config.instance);
 
         // Wait for transmission complete
-        timeout = _config.timeoutMs;
+        timeout = _config.timeoutMs * 100; // Convert to ~10us units
         while (LL_SPI_IsActiveFlag_BSY(_config.instance)) {
             if (timeout-- == 0) {
                 return SPIStatus::TIMEOUT;
             }
-            LL_mDelay(1);
+            SPI_ShortDelay();
         }
 
         return SPIStatus::OK;
@@ -357,11 +368,12 @@ namespace SPI
 
     SPIStatus SPIMaster::waitForCompletion(uint32_t timeoutMs)
     {
+        uint32_t timeout = timeoutMs * 100; // Convert to ~10us units
         while (isBusy()) {
-            if (timeoutMs-- == 0) {
+            if (timeout-- == 0) {
                 return SPIStatus::TIMEOUT;
             }
-            LL_mDelay(1);
+            SPI_ShortDelay();
         }
         return SPIStatus::OK;
     }

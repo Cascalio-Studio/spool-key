@@ -100,7 +100,8 @@ extern "C" {
 
 /**
  * @brief Write function wrapper
- * @details Transfers pointer and data size to the UART Transmit function
+ * @details Transfers pointer and data size to the UART Transmit function.
+ *          Automatically appends \r\n at the end for proper terminal display.
  * @param file - File descriptor (e.g., STDOUT_FILENO for stdout, STDERR_FILENO for stderr)
  * @param *ptr - Pointer to data
  * @param len - Length of data
@@ -110,9 +111,17 @@ int _write(int file, char *ptr, int len)
 {
     if (file == STDOUT_FILENO || file == STDERR_FILENO)
     {
-    	HAL_UART_Transmit(&hlpuart1, (uint8_t*)ptr, len, 100);
+        // Send original data
+        HAL_UART_Transmit(&hlpuart1, (uint8_t*)ptr, len, 100);
         while(hlpuart1.gState != HAL_UART_STATE_READY) {
         }
+        
+        // Append \r\n at the end
+        const char line_end[2] = {'\r', '\n'};
+        HAL_UART_Transmit(&hlpuart1, (uint8_t*)line_end, 2, 100);
+        while(hlpuart1.gState != HAL_UART_STATE_READY) {
+        }
+        
         return len;
     }
     errno = EBADF;

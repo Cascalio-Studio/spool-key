@@ -17,6 +17,31 @@
 namespace NFC
 {
     // ============================================================================
+    // Helper Functions
+    // ============================================================================
+    
+    /**
+     * @brief Safe delay function that works before and after scheduler starts
+     * @param ms Delay in milliseconds
+     */
+    static void SafeDelay(uint32_t ms)
+    {
+        // Check if scheduler is running
+        if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING) {
+            // Scheduler is running, use FreeRTOS delay
+            vTaskDelay(pdMS_TO_TICKS(ms));
+        } else {
+            // Scheduler not running, use busy wait
+            // Assuming 80MHz CPU, approximate delay
+            for (uint32_t i = 0; i < ms; i++) {
+                for (volatile uint32_t j = 0; j < 8000; j++) {
+                    __NOP();
+                }
+            }
+        }
+    }
+    
+    // ============================================================================
     // Constructor and Destructor
     // ============================================================================
 
@@ -111,7 +136,7 @@ namespace NFC
         }
 
         // Wait for oscillator to stabilize
-        vTaskDelay(pdMS_TO_TICKS(10));
+        SafeDelay(10);
 
         // Clear FIFO
         status = ClearFifo();
@@ -154,7 +179,7 @@ namespace NFC
             }
 
             // Wait for field to stabilize
-            vTaskDelay(pdMS_TO_TICKS(5));
+            SafeDelay(5);
         } else {
             // Disable transmitter
             status = ModifyRegister(::ST25R3911B::REG_MODE, 
@@ -202,7 +227,7 @@ namespace NFC
 
     NFCStatus ST25R3911B::ReadRegister(uint8_t reg, uint8_t& value)
     {
-        if (!_initialized || !isValidRegister(reg)) {
+        if (!_config.spiMaster || !isValidRegister(reg)) {
             return NFCStatus::INVALID_PARAM;
         }
 
@@ -223,7 +248,7 @@ namespace NFC
 
     NFCStatus ST25R3911B::WriteRegister(uint8_t reg, uint8_t value)
     {
-        if (!_initialized || !isValidRegister(reg)) {
+        if (!_config.spiMaster || !isValidRegister(reg)) {
             return NFCStatus::INVALID_PARAM;
         }
 
@@ -238,7 +263,7 @@ namespace NFC
 
     NFCStatus ST25R3911B::ReadRegisters(uint8_t startReg, std::vector<uint8_t>& data, uint8_t length)
     {
-        if (!_initialized || !isValidRegister(startReg) || length == 0) {
+        if (!_config.spiMaster || !isValidRegister(startReg) || length == 0) {
             return NFCStatus::INVALID_PARAM;
         }
 
@@ -259,7 +284,7 @@ namespace NFC
 
     NFCStatus ST25R3911B::WriteRegisters(uint8_t startReg, const std::vector<uint8_t>& data)
     {
-        if (!_initialized || !isValidRegister(startReg) || data.empty()) {
+        if (!_config.spiMaster || !isValidRegister(startReg) || data.empty()) {
             return NFCStatus::INVALID_PARAM;
         }
 
@@ -275,7 +300,7 @@ namespace NFC
 
     NFCStatus ST25R3911B::ExecuteCommand(uint8_t cmd)
     {
-        if (!_initialized || !isValidCommand(cmd)) {
+        if (!_config.spiMaster || !isValidCommand(cmd)) {
             return NFCStatus::INVALID_PARAM;
         }
 
@@ -330,7 +355,7 @@ namespace NFC
 
     NFCStatus ST25R3911B::ReadFifo(std::vector<uint8_t>& data, uint8_t length)
     {
-        if (!_initialized || length == 0) {
+        if (!_config.spiMaster || length == 0) {
             return NFCStatus::INVALID_PARAM;
         }
 
@@ -351,7 +376,7 @@ namespace NFC
 
     NFCStatus ST25R3911B::WriteFifo(const std::vector<uint8_t>& data)
     {
-        if (!_initialized || data.empty()) {
+        if (!_config.spiMaster || data.empty()) {
             return NFCStatus::INVALID_PARAM;
         }
 
@@ -430,7 +455,7 @@ namespace NFC
 
     NFCStatus ST25R3911B::Transmit(const std::vector<uint8_t>& data, bool crc)
     {
-        if (!_initialized || data.empty()) {
+        if (!_config.spiMaster || data.empty()) {
             return NFCStatus::INVALID_PARAM;
         }
 
@@ -453,8 +478,8 @@ namespace NFC
 
     NFCStatus ST25R3911B::Receive(std::vector<uint8_t>& data, uint32_t timeoutMs)
     {
-        if (!_initialized) {
-            return NFCStatus::NOT_INITIALIZED;
+        if (!_config.spiMaster) {
+            return NFCStatus::INVALID_PARAM;
         }
 
         if (timeoutMs == 0) {
@@ -606,7 +631,7 @@ namespace NFC
             if ((xTaskGetTickCount() - startTime) >= timeoutTicks) {
                 return NFCStatus::TIMEOUT;
             }
-            vTaskDelay(pdMS_TO_TICKS(1));
+            SafeDelay(1);
         }
 
         _interruptPending = false;
