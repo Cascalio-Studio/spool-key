@@ -22,6 +22,7 @@
 #include "spiClass.h"
 #include "nfcTaskManager.h"
 #include "st25r3911b.h"
+#include "st25r3911b_registers.h"
 
 // ST25R3911B NFC Controller SPI Configuration
 static SPI::SPIConfig nfcSpiConfig = {
@@ -152,7 +153,7 @@ void nfcTagDetectedCallback(const NFC::TagInfo& tagInfo)
         nfcTaskManager->ReadText([](const NFC::OperationResult& result) {
             if (result.status == NFC::NFCStatus::OK) {
                 // Successfully read text - could store or process it
-                printf("NFC: Successfully read text from tag\n");
+                printf("NFC: Successfully read text from tag");
             }
         });
     }
@@ -200,6 +201,13 @@ void App_init( void )
     nfcConfig.irqCallback = nfcIrqCallback;
     
     nfcController = new NFC::ST25R3911B(nfcConfig);
+    
+    // Initialize the NFC controller hardware
+    NFC::NFCStatus initStatus = nfcController->Initialize();
+    if (initStatus != NFC::NFCStatus::OK) {
+        printf("Warning: NFC controller initialization failed with status: %d", static_cast<int>(initStatus));
+    }
+    
     nfcManager = new NFC::NFCManager(nfcController);
     
     // Initialize NFC Task Manager
@@ -210,6 +218,34 @@ void App_init( void )
     // Turn off LED initially
     ledOutput->Write(true);
     ledextOutput->Write(true);
+
+    // Check if NFC chip is responding
+    checkNFCChip();
+}
+
+/**
+ * @brief Checks if the NFC chip is responding by reading its ID.
+ */
+void checkNFCChip()
+{
+    if (nfcController) {
+        uint8_t chipId = 0;
+        NFC::NFCStatus status = nfcController->GetIdentity(chipId);
+        
+        if (status == NFC::NFCStatus::OK) {
+            // The expected ID for ST25R3911B is 0x09 (from ST25R3911B::IC_IDENTITY_VALUE)
+            if (chipId == ST25R3911B::IC_IDENTITY_VALUE) {
+                printf("NFC chip detected successfully. Chip ID: 0x%02X", chipId);
+            } else {
+                printf("Warning: NFC chip responded with unexpected ID: 0x%02X (expected 0x%02X)", 
+                       chipId, ST25R3911B::IC_IDENTITY_VALUE);
+            }
+        } else {
+            printf("Error: Failed to communicate with NFC chip. Status: %d", static_cast<int>(status));
+        }
+    } else {
+        printf("Error: NFC controller not initialized.");
+    }
 }
 
 /**
@@ -230,9 +266,9 @@ void App_start( void *data )
         
         NFC::NFCStatus status = nfcTaskManager->StartTagDetection(protocols, nfcTagDetectedCallback);
         if (status == NFC::NFCStatus::OK) {
-            printf("NFC: Tag detection started\n");
+            printf("NFC: Tag detection started");
         } else {
-            printf("NFC: Failed to start tag detection\n");
+            printf("NFC: Failed to start tag detection");
         }
     }
     

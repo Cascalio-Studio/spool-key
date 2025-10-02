@@ -31,6 +31,12 @@ void App_init( void );
  */
 void App_start( void *data );
 
+/**
+ * @brief Checks if the NFC chip is responding.
+ * @details Reads the chip ID register to verify communication.
+ */
+void checkNFCChip( void );
+
 #ifdef __cplusplus
 }
 #endif
